@@ -1,0 +1,23 @@
+{
+  "n_users": 1,
+  "n_items": 1,
+  "metadata": {
+    "dataset": "REPLACE: Amazon Baby, Sports, or Clothing",
+    "source": "REPLACE: original source URL and local preparation provenance",
+    "version": "UNKNOWN: owner must declare actual release or explicitly retain unknown",
+    "filtering": "REPLACE: filtering, deduplication and k-core rules",
+    "split_protocol": "REPLACE: split method, seed or time boundaries",
+    "id_mapping": "REPLACE: zero-based mapping source and mapping SHA256",
+    "encoders": "REPLACE: visual/text encoder versions, dimensions and preprocessing",
+    "mask_protocol": "REPLACE: natural missingness, fixed pattern/rate/seed, training-time vs inference-time setting"
+  },
+  "files": {
+    "train": {"path": "train.npy", "sha256": "REPLACE_WITH_ACTUAL_SHA256"},
+    "valid": {"path": "valid.npy", "sha256": "REPLACE_WITH_ACTUAL_SHA256"},
+    "test": {"path": "test.npy", "sha256": "REPLACE_WITH_ACTUAL_SHA256"},
+    "visual": {"path": "visual.npy", "sha256": "REPLACE_WITH_ACTUAL_SHA256"},
+    "text": {"path": "text.npy", "sha256": "REPLACE_WITH_ACTUAL_SHA256"},
+    "natural_mask": {"path": "natural_mask.npy", "sha256": "REPLACE_WITH_ACTUAL_SHA256"},
+    "experiment_mask": {"path": "experiment_mask.npy", "sha256": "REPLACE_WITH_ACTUAL_SHA256"}
+  }
+}
