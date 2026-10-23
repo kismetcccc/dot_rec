@@ -1,0 +1,45 @@
+# Secrets and local environments
+.env
+.env.*
+.venv/
+venv/
+env/
+
+# External datasets (root only: retain src/dot_rec/data source code)
+/data/
+/Data/
+/datasets/
+/features/
+*.npy
+*.npz
+*.parquet
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+
+# Weights and experiment artifacts
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+/checkpoints/
+/checkpoint/
+/saved/
+/runs/
+/outputs/
+/results/
+/logs/
+/wandb/
+*.log
+
+# Caches and generated Python files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+*.egg-info/
+/build/
+/dist/
