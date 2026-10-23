@@ -20,6 +20,15 @@ def _cutoffs(ks):
     return ks
 
 
+def _metrics(metrics):
+    if not isinstance(metrics, (tuple, list)) or not metrics or any(
+            not isinstance(m, str) or m not in ("recall", "ndcg", "precision", "map") for m in metrics):
+        raise ValueError("metrics must be a nonempty list of supported lowercase names")
+    if len(set(metrics)) != len(metrics):
+        raise ValueError("Duplicate metrics are not allowed")
+    return tuple(metrics)
+
+
 def _edges(edges, n_users, n_items):
     edges = np.asarray(edges)
     if edges.ndim != 2 or edges.shape[1] != 2 or edges.dtype.kind not in "iu":
@@ -73,8 +82,9 @@ def recommend(encoded, users, excluded, k, item_chunk=4096):
     return torch.where(torch.isfinite(best_scores), best_ids, -torch.ones_like(best_ids)).cpu().numpy()
 
 
-def ranking_metrics(ranked, users, positives, ks=(10, 20)):
+def ranking_metrics(ranked, users, positives, ks=(10, 20), metrics=("recall", "ndcg")):
     ks = _cutoffs(ks)
+    metrics = _metrics(metrics)
     ranked = np.asarray(ranked)
     if ranked.ndim != 2 or len(ranked) != len(users):
         raise ValueError("ranked must have exactly one row per user")
@@ -87,7 +97,7 @@ def ranking_metrics(ranked, users, positives, ks=(10, 20)):
     for targets in positives.values():
         if any(isinstance(j, (bool, np.bool_)) or not isinstance(j, (int, np.integer)) or j < 0 for j in targets):
             raise ValueError("Targets must be nonnegative integer IDs")
-    totals = {f"{metric}@{k}": 0.0 for k in ks for metric in ("recall", "ndcg")}
+    totals = {f"{metric}@{k}": 0.0 for k in ks for metric in metrics}
     count = 0
     for row, user in zip(ranked, users):
         targets = positives.get(int(user), set())
@@ -96,10 +106,16 @@ def ranking_metrics(ranked, users, positives, ks=(10, 20)):
         count += 1
         for k in ks:
             hits = [1.0 if j >= 0 and int(j) in targets else 0.0 for j in row[:k]]
-            totals[f"recall@{k}"] += sum(hits) / len(targets)
             dcg = sum(hit / math.log2(rank + 2) for rank, hit in enumerate(hits))
             ideal = sum(1 / math.log2(rank + 2) for rank in range(min(k, len(targets))))
-            totals[f"ndcg@{k}"] += dcg / ideal
+            cumulative, ap_sum = 0.0, 0.0
+            for rank, hit in enumerate(hits, 1):
+                cumulative += hit
+                ap_sum += hit * cumulative / rank
+            values = {"recall": sum(hits) / len(targets), "ndcg": dcg / ideal,
+                      "precision": sum(hits) / k, "map": ap_sum / min(k, len(targets))}
+            for metric in metrics:
+                totals[f"{metric}@{k}"] += values[metric]
     if count == 0:
         raise ValueError("Evaluation requires at least one user with a positive")
     return {key: value / count for key, value in totals.items()}
@@ -107,31 +123,34 @@ def ranking_metrics(ranked, users, positives, ks=(10, 20)):
 
 @torch.no_grad()
 def evaluate(model, target_edges, excluded_edges, ks=(10, 20), user_batch=128, item_chunk=4096,
-             view_mask=None, population="all", return_report=False):
+             view_mask=None, population="all", return_report=False, metrics=("recall", "ndcg")):
     ks = _cutoffs(ks)
+    metrics = _metrics(metrics)
     _positive_integer(user_batch, "user_batch")
     _positive_integer(item_chunk, "item_chunk")
     target_edges = _edges(target_edges, model.graph.n_users, model.graph.n_items)
     excluded_edges = _edges(excluded_edges, model.graph.n_users, model.graph.n_items)
+    coverage = split_coverage(model.graph.user_degree.detach().cpu().numpy(),
+                              model.graph.item_degree.detach().cpu().numpy(), target_edges, population)
+    if population == "train_users_only":
+        degree = model.graph.user_degree.detach().cpu().numpy()
+        target_edges = target_edges[degree[target_edges[:, 0]] > 0]
     positives, excluded = histories(target_edges), histories(excluded_edges)
     if any(items & excluded.get(u, set()) for u, items in positives.items()):
         raise ValueError("Evaluation targets overlap masked history")
     users = sorted(positives)
     if not users:
-        raise ValueError("Empty evaluation split")
-    coverage = split_coverage(model.graph.user_degree.detach().cpu().numpy(),
-                              model.graph.item_degree.detach().cpu().numpy(),
-                              np.asarray(target_edges), population)
+        raise ValueError("Empty effective evaluation split")
     was_training = model.training
     model.eval()
     try:
         encoded = model.encode(view_mask=view_mask)  # fixed mask; fresh statistics, no dropout
-        totals = {f"{m}@{k}": 0.0 for k in ks for m in ("recall", "ndcg")}
+        totals = {f"{m}@{k}": 0.0 for k in ks for m in metrics}
         for offset in range(0, len(users), user_batch):
             batch = users[offset:offset + user_batch]
             ranked = recommend(encoded, batch, excluded, max(ks), item_chunk)
-            metrics = ranking_metrics(ranked, batch, positives, ks)
-            for key, value in metrics.items():
+            batch_metrics = ranking_metrics(ranked, batch, positives, ks, metrics)
+            for key, value in batch_metrics.items():
                 totals[key] += value * len(batch)
         metrics = {key: value / len(users) for key, value in totals.items()}
         return {"metrics": metrics, "coverage": coverage} if return_report else metrics

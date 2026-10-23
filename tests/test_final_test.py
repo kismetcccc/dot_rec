@@ -43,7 +43,7 @@ class FinalTestTests(unittest.TestCase):
         with fixture_directory() as tmp:
             root = Path(tmp)
             model = fixture()
-            cfg = TrainConfig()
+            cfg = TrainConfig(metrics=("recall", "ndcg", "precision", "map"), cutoffs=(5, 10, 20, 50))
             def save(name, value):
                 (root / name).write_text(json.dumps(value), encoding="utf-8")
             save("resolved_config.json", resolved_config(ModelConfig(), cfg))
@@ -94,6 +94,8 @@ class FinalTestTests(unittest.TestCase):
                 run_final_test(root, "unused")
                 evaluate.assert_called_once()
                 self.assertIs(evaluate.call_args.args[1], data.test)
+                self.assertEqual(evaluate.call_args.kwargs["ks"], cfg.cutoffs)
+                self.assertEqual(evaluate.call_args.kwargs["metrics"], cfg.metrics)
                 with self.assertRaises(FileExistsError):
                     run_final_test(root, "unused")
                 evaluate.assert_called_once()

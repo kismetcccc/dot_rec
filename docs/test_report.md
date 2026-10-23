@@ -1,6 +1,6 @@
 # Local verification report
 
-Latest result: **38 tests passed** (16 model, 13 protocol, 6 API, 3 final-entrypoint checks). Earlier 32/34 counts are historical snapshots, not current results.
+Latest result: **42 tests passed** (16 model, 13 protocol, 6 API, 3 final-entrypoint checks, 4 LGMRec alignment checks). Earlier 32/34 counts are historical snapshots, not current results.
 
 CPU-only tiny synthetic forward, scalar reference, local synthetic data fixtures, finite-autograd checks, mocked final-evaluation control flow and static training-call inspection. No training loop, optimizer step, real dataset benchmark, GPU execution or dependency installation.
 
@@ -14,4 +14,6 @@ Flat-layout equivalence passed: seed 7 tiny CPU outputs p/v/behavior/z/h/c/g/q e
 
 Fixture directories and pre-move tensors are ignored synthetic cache, never publishable artifacts. GPU execution, end-to-end optimization, scalability, dataset validity and novelty remain unverified.
 
-Final-entrypoint regression cases also mock a changed source fingerprint and an unavailable fingerprint: both reject before evaluating. environment.json is bound by SHA256. Tests still total 38 methods, with these additional subcases.
+Final-entrypoint regression cases also mock a changed source fingerprint and an unavailable fingerprint: both reject before evaluating. environment.json is bound by SHA256. These additional subcases remain in the final-entrypoint tests.
+
+LGMRec regression checks cover MAP min(K,P), Precision/K, macro versus micro, short rankings/padding, 16-metric config propagation to validation and final evaluation, explicit cold-user-only filtering without removing cold items or mutating support, and rejection of manifest hash placeholders before data access.

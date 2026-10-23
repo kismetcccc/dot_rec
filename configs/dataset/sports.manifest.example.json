@@ -1,0 +1,40 @@
+{
+  "n_users": 35598,
+  "n_items": 18357,
+  "metadata": {
+    "dataset": "Amazon sports; reference-log catalog dimensions only, VERIFY AGAINST ACTUAL FILES",
+    "source": "https://github.com/georgeguo-cn/LGMRec/tree/d66655fc4a2b066f915365b58e806f39cd08f0dd; data/sports/sports.inter Git blob SHA1 f01d7e95dbd8e7b91859633127e6b2db3af0e8ad (NOT file SHA256)",
+    "version": "UNKNOWN Amazon release; repository snapshot identified, actual feature distribution NOT VERIFIED",
+    "filtering": "UNKNOWN original preprocessing; explicit evaluation train_users_only excludes cold users only, preserves cold items",
+    "split_protocol": "Use existing x_label 0/1/2 without re-splitting. Historical log TRAIN/valid/test rows 218409/37899/40029; NOT counted from local files",
+    "id_mapping": "VERIFY zero-based userID/itemID and feature row alignment; provide mapping provenance/hash",
+    "encoders": "README: VGG-16 image, Sentence-Transformers text; historical log dimensions 4096/384, actual files and exact encoder versions UNVERIFIED",
+    "mask_protocol": "REPLACE with verified natural availability and fixed experiment pattern/rate/seed; no masks generated automatically"
+  },
+  "files": {
+    "mmrec_inter": {
+      "path": "sports.inter",
+      "sha256": "REPLACE_WITH_ACTUAL_SHA256",
+      "user_field": "userID",
+      "item_field": "itemID",
+      "label_field": "x_label",
+      "separator": "\t"
+    },
+    "visual": {
+      "path": "image_feat.npy",
+      "sha256": "REPLACE_WITH_ACTUAL_SHA256"
+    },
+    "text": {
+      "path": "text_feat.npy",
+      "sha256": "REPLACE_WITH_ACTUAL_SHA256"
+    },
+    "natural_mask": {
+      "path": "natural_mask.npy",
+      "sha256": "REPLACE_WITH_ACTUAL_SHA256"
+    },
+    "experiment_mask": {
+      "path": "experiment_mask.npy",
+      "sha256": "REPLACE_WITH_ACTUAL_SHA256"
+    }
+  }
+}

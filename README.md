@@ -47,3 +47,5 @@ python evaluate.py --run /external/selected-run --manifest /external/dataset/man
 It verifies data/config/checkpoint bindings, never trains, and refuses an existing final_test.json. Both entrypoints refuse execution without their explicit opt-in flag. No real training or final benchmark has been run here.
 
 Verified local tests used PyTorch 2.6.0; the declared >=2.6,<3 range is not a guarantee that every version/device has been tested. Final evaluation also checks the saved source fingerprint against the current source checkout, ignoring Git commit differences alone (for example documentation-only commits). Missing or changed source fingerprints are rejected.
+
+LGMRec data/metric alignment: see [verified contract and limits](docs/lgmrec_alignment.md). The optional configs/model/bast_lgmrec.json reports Recall/NDCG/Precision/MAP at 5/10/20/50 and explicitly filters only cold target users. Three dataset manifest templates require actual file verification and SHA256 replacement; they are not ready-to-run data.

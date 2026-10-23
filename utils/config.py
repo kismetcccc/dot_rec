@@ -14,6 +14,8 @@ class TrainConfig:
     l2_weight: float = 0.00001
     dropout: float = 0.1
     patience: int = 10
+    metrics: tuple = ("recall", "ndcg")
+    cutoffs: tuple = (10, 20)
     selection_metric: str = "recall@20"
     user_batch: int = 128
     item_chunk: int = 4096
@@ -33,14 +35,25 @@ class TrainConfig:
                 raise ValueError(f"{name} must be finite")
         if self.learning_rate <= 0 or self.l2_weight < 0 or not 0 <= self.dropout <= 1:
             raise ValueError("Invalid learning rate, L2 or dropout")
-        if self.selection_metric not in {"recall@10", "recall@20", "ndcg@10", "ndcg@20"}:
+        if not isinstance(self.metrics, (list, tuple)) or not self.metrics or any(
+                not isinstance(m, str) or m not in ("recall", "ndcg", "precision", "map") for m in self.metrics):
+            raise ValueError("Invalid metrics")
+        if len(set(self.metrics)) != len(self.metrics):
+            raise ValueError("Duplicate metrics")
+        if not isinstance(self.cutoffs, (list, tuple)) or not self.cutoffs or any(type(k) is not int or k < 1 for k in self.cutoffs):
+            raise ValueError("Invalid cutoffs")
+        if len(set(self.cutoffs)) != len(self.cutoffs):
+            raise ValueError("Duplicate cutoffs")
+        object.__setattr__(self, "metrics", tuple(self.metrics))
+        object.__setattr__(self, "cutoffs", tuple(self.cutoffs))
+        if self.selection_metric not in {f"{m}@{k}" for m in self.metrics for k in self.cutoffs}:
             raise ValueError("Selection metric must be an implemented validation metric")
         if type(self.test_mask_valid) is not bool or not isinstance(self.device, str):
             raise ValueError("Invalid device or test_mask_valid")
         if self.protocol not in ("mtmt", "ftmt"):
             raise ValueError("protocol must be mtmt or ftmt")
-        if self.evaluation_population not in ("all", "warm_only"):
-            raise ValueError("evaluation_population must be all or warm_only")
+        if self.evaluation_population not in ("all", "warm_only", "train_users_only"):
+            raise ValueError("evaluation_population must be all, warm_only or train_users_only")
 
 
 def load_config(path):

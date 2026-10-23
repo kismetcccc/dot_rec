@@ -59,7 +59,7 @@ def run_final_test(run, manifest):
     with destination.open("x", encoding="utf-8") as stream:
         report = evaluate(model, data.test, excluded, user_batch=cfg.user_batch,
                           item_chunk=cfg.item_chunk, view_mask=data.observed,
-                          population=cfg.evaluation_population, return_report=True)
+                          population=cfg.evaluation_population, return_report=True, ks=cfg.cutoffs, metrics=cfg.metrics)
         json.dump({"selected_epoch": selection["epoch"], "selection_source": "validation_only",
                    "protocol": cfg.protocol, "test_mask_valid": cfg.test_mask_valid,
                    "test": report["metrics"], "coverage": report["coverage"],

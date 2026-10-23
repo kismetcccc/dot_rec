@@ -64,7 +64,7 @@ def run_training(args):
             total += float(losses["total"].detach()) * len(edges)
             examples += len(edges)
         valid_report = evaluate(model, data.valid, data.train, user_batch=cfg.user_batch, item_chunk=cfg.item_chunk,
-                                view_mask=eval_mask, population=cfg.evaluation_population, return_report=True)
+                                view_mask=eval_mask, population=cfg.evaluation_population, return_report=True, ks=cfg.cutoffs, metrics=cfg.metrics)
         valid = valid_report["metrics"]
         score = valid[cfg.selection_metric]
         with (output / "validation.jsonl").open("a", encoding="utf-8") as stream:

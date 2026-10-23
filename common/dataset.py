@@ -84,9 +84,9 @@ def validate_splits(train, valid, test, n_users, n_items):
 
 
 def split_coverage(user_degree, item_degree, edges, population="all"):
-    """Target endpoint coverage against TRAIN degrees; never filter edges."""
-    if population not in ("all", "warm_only"):
-        raise ValueError("evaluation_population must be all or warm_only")
+    """Report raw and effective populations without mutating source arrays."""
+    if population not in ("all", "warm_only", "train_users_only"):
+        raise ValueError("evaluation_population must be all, warm_only or train_users_only")
     users, items = np.unique(edges[:, 0]), np.unique(edges[:, 1])
     cold_u = user_degree[edges[:, 0]] == 0
     cold_i = item_degree[edges[:, 1]] == 0
@@ -108,6 +108,15 @@ def split_coverage(user_degree, item_degree, edges, population="all"):
     }
     if population == "warm_only" and (report["cold_target_users"] or report["cold_target_items"]):
         raise ValueError("warm_only requires every evaluation target user/item to have positive TRAIN degree; no filtering performed")
+    effective = edges[~cold_u] if population == "train_users_only" else edges
+    effective_users = len(np.unique(effective[:, 0]))
+    report.update({"raw_target_users": int(len(users)), "raw_target_interactions": int(len(edges)),
+                   "effective_target_users": int(effective_users), "effective_target_interactions": int(len(effective)),
+                   "filtered_target_users": int(len(users) - effective_users),
+                   "filtered_target_interactions": int(len(edges) - len(effective)),
+                   "effective_cold_target_items": int(np.count_nonzero(item_degree[np.unique(effective[:, 1])] == 0))})
+    if population == "train_users_only" and not len(effective):
+        raise ValueError("Empty effective evaluation split under train_users_only")
     return report
 
 
@@ -159,6 +168,8 @@ def load_manifest(path, protocol="mtmt", evaluation_population="all"):
     arrays, hashes = {}, {}
     for name, spec in files.items():
         strict_keys(spec, {"path", "sha256", "key", "user_field", "item_field", "label_field", "separator"}, {"path", "sha256"})
+        if not isinstance(spec["sha256"], str) or len(spec["sha256"]) != 64 or any(c not in "0123456789abcdef" for c in spec["sha256"]):
+            raise ValueError(f"{name}: SHA256 must be an actual 64-character lowercase digest, not a placeholder or Git blob SHA")
         location = (path.parent / spec["path"]).resolve()
         digest = sha256_file(location)
         if digest != spec["sha256"]:
