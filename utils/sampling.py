@@ -1,5 +1,5 @@
 import numpy as np
-from dot_rec.evaluation import histories
+from common.evaluator import histories
 
 
 class TrainNegativeSampler:

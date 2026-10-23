@@ -2,7 +2,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-from dot_rec.graph import segment_sum, safe_normalize, safe_cosine
+from utils.incidence import segment_sum, safe_normalize, safe_cosine
 
 
 class ObservedTransport(nn.Module):

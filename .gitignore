@@ -5,9 +5,9 @@
 venv/
 env/
 
-# External datasets (root only: retain src/dot_rec/data source code)
-/data/
-/Data/
+# External datasets: only the explanatory README is tracked
+/data/*
+!/data/README.md
 /datasets/
 /features/
 *.npy
@@ -30,6 +30,7 @@ env/
 /outputs/
 /results/
 /logs/
+/log/
 /wandb/
 *.log
 

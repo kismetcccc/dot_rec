@@ -2,10 +2,10 @@
 import unittest
 import numpy as np
 import torch
-from dot_rec.graph import Incidence, safe_normalize
-from dot_rec.models import ModelConfig
-from dot_rec.training.config import TrainConfig
-from dot_rec.data import fixed_mask, dropout_view
+from utils.incidence import Incidence, safe_normalize
+from model import ModelConfig
+from utils.config import TrainConfig
+from utils.masks import fixed_mask, dropout_view
 from test_model import fixture
 
 

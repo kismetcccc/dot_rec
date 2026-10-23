@@ -3,10 +3,10 @@ import math
 import torch
 from torch import nn
 from torch.nn import functional as F
-from dot_rec.graph import Incidence, safe_normalize
-from dot_rec.graph.incidence import require_full_precision
-from .observed import ObservedTransport
-from .missing import MissingTransport
+from utils.incidence import Incidence, safe_normalize
+from utils.incidence import require_full_precision
+from .modules.observed import ObservedTransport
+from .modules.missing import MissingTransport
 
 
 @dataclass(frozen=True)

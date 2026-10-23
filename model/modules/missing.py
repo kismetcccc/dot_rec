@@ -1,7 +1,7 @@
 """Module 2: one-way transport from paired, currently observed donors."""
 import torch
 from torch import nn
-from dot_rec.graph import segment_sum, safe_cosine
+from utils.incidence import segment_sum, safe_cosine
 
 
 class MissingTransport(nn.Module):

@@ -1,70 +1,23 @@
 """Explicit user training entrypoint. DO NOT execute training on the development PC."""
 import argparse
-import hashlib
 import json
-import os
 from pathlib import Path
 import platform
 import random
-import subprocess
 import numpy as np
 import torch
-from dot_rec.data import load_manifest, dropout_view
-from dot_rec.models import BAST
-from dot_rec.evaluation import evaluate
-from .config import load_config, resolved_config
-from .sampling import TrainNegativeSampler
+from common.dataset import load_manifest
+from utils.masks import dropout_view
+from common.dataset import sha256_file
+from model import BAST
+from common.evaluator import evaluate
+from utils.config import load_config, resolved_config
+from utils.sampling import TrainNegativeSampler
+from utils.reproducibility import code_version, configure_determinism
 
 
 def write_json(path, value):
     Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
-
-
-def source_fingerprint(root):
-    """Hash only regular Python source and JSON configuration files; no data/secrets."""
-    root = Path(root).resolve()
-    hashes = {}
-    for directory, suffix in (("src", ".py"), ("configs", ".json")):
-        base = root / directory
-        if not base.is_dir() or base.is_symlink():
-            continue
-        for path in sorted(base.rglob("*")):
-            if path.suffix != suffix or not path.is_file():
-                continue
-            if any(part.is_symlink() for part in (path, *path.parents) if part != root):
-                continue
-            relative = path.relative_to(root).as_posix()
-            hashes[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
-    payload = json.dumps(hashes, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return {"algorithm": "sha256", "scope": "regular src/**/*.py and configs/**/*.json; symlinks excluded",
-            "files": hashes, "digest": hashlib.sha256(payload).hexdigest() if hashes else None}
-
-
-def code_version():
-    root = Path(__file__).resolve().parents[3]
-    fingerprint = source_fingerprint(root)
-    # Installed wheels may not have repository metadata; do not invent a SHA.
-    try:
-        result = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True)
-        status = subprocess.run(["git", "-C", str(root), "status", "--porcelain"], capture_output=True, text=True)
-    except OSError:
-        return {"commit": "unknown", "dirty": None, "source_fingerprint": fingerprint}
-    return {"commit": result.stdout.strip() if result.returncode == 0 else "unknown",
-            "dirty": bool(status.stdout.strip()) if status.returncode == 0 else None,
-            "source_fingerprint": fingerprint}
-
-
-def configure_determinism(device):
-    """Only called inside an explicit user run, before seeds or CUDA tensors."""
-    if torch.device(device).type == "cuda":
-        if torch.cuda.is_initialized():
-            raise RuntimeError("Deterministic CUDA runs require a fresh process before CUDA initialization")
-        workspace = os.environ.get("CUBLAS_WORKSPACE_CONFIG")
-        if workspace is None:
-            os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-        elif workspace not in (":4096:8", ":16:8"):
-            raise ValueError("CUBLAS_WORKSPACE_CONFIG must be :4096:8 or :16:8 for deterministic CUDA")
-    torch.use_deterministic_algorithms(True)
 
 
 def run_training(args):
@@ -127,17 +80,10 @@ def run_training(args):
             stale += 1
         if stale >= cfg.patience:
             break
-    selected = torch.load(output / "best.pt", map_location=cfg.device, weights_only=True)
-    with torch.no_grad():
-        for name, parameter in model.named_parameters():
-            parameter.copy_(selected[name])
-    excluded = np.concatenate((data.train, data.valid)) if cfg.test_mask_valid else data.train
-    test_report = evaluate(model, data.test, excluded, user_batch=cfg.user_batch, item_chunk=cfg.item_chunk,
-                           view_mask=eval_mask, population=cfg.evaluation_population, return_report=True)
-    write_json(output / "final_test.json", {"selected_epoch": best_epoch, "test_mask_valid": cfg.test_mask_valid,
-                                           "test": test_report["metrics"], "coverage": test_report["coverage"],
-                                           "selection_source": "validation_only", "protocol": cfg.protocol})
-    print(f"Completed explicit user run; artifacts at {output}")
+    write_json(output / "selection_binding.json", {
+        name: sha256_file(output / name)
+        for name in ("resolved_config.json", "provenance.json", "selection.json", "best.pt", "environment.json")})
+    print(f"Validation-only run completed; selected epoch {best_epoch}; artifacts at {output}")
 
 
 def main(argv=None):

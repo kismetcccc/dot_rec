@@ -2,7 +2,7 @@ from dataclasses import dataclass, fields, asdict
 import json
 import math
 from pathlib import Path
-from dot_rec.models import ModelConfig
+from model import ModelConfig
 
 
 @dataclass(frozen=True)

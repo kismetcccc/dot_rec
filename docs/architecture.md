@@ -15,29 +15,36 @@
 
 MMRec 有 GPLv3 LICENSE；ChaoRec 该快照未发现许可证文件。上述仅为接口和协议审查，不代表已核验其所有模型的作者官方来源。2025–2026 相关官方实现及机制差异由后续研究补充；不把模型集合仓库一概称为作者官方代码。
 
-## 计划目录
+## Current flat layout
 
 ```text
+main.py                         # guarded validation-only training entrypoint
+evaluate.py                     # guarded final-test entrypoint
+model/bast.py                   # single main model
+model/modules/{observed,missing}.py
+common/{dataset,trainer,evaluator,final_test}.py
+utils/{config,incidence,masks,sampling,reproducibility}.py
+configs/model/bast.json
+configs/dataset/manifest.example.json
+data/README.md                  # real data ignored/external
+requirement.txt                 # minimum runtime dependencies
+pyproject.toml                  # flat-package discovery
 agent.md
-src/dot_rec/
-  data/          # 加载、适配、验证、固定掩码
-  graph/         # TRAIN-only 稀疏锚点结构与统计
-  models/        # 一个主模型 + 两个研究模块
-  training/      # 用户外部运行的训练流程，当前电脑禁止执行
-  evaluation/    # 分块全排序与独立指标
-tests/           # 小型合成、CPU、无训练
-configs/         # 主模型配置与数据接口配置
-docs/           # 设计、数据协议、参考与实验说明
+README.md
+tests/
+docs/
 ```
 
-这是计划树，不要求立即创建所有目录。模块先用少量文件实现，仅在职责或文件规模需要时拆分。data 是代码包名，真实数据放用户指定的外部路径，不能提交入仓库。暂不引入注册器、插件系统或通用基类体系。
+Package directories include __init__.py. All future models belong in singular model/. No src duplicate, img placeholder, registry or automatic training launcher is retained. log/ is ignored but not created as an empty shell. The reference [LGMRec snapshot d66655fc4a2b066f915365b58e806f39cd08f0dd](https://github.com/georgeguo-cn/LGMRec/tree/d66655fc4a2b066f915365b58e806f39cd08f0dd) was inspected read-only: common contains abstract_recommender/trainer; utils contains configurator/data utilities/dataloader/dataset/logger/metrics/quick_start/topk_evaluator; configs separates model/dataset. Its main.py parses model/dataset/GPU arguments and delegates to quick_start. Only directory responsibilities inform this layout; no upstream code, environment mutation, training or evaluation procedure is copied.
+
+common.dataset validates external arrays; utils.incidence consumes TRAIN edges only; model.bast performs the unchanged two-module forward pass; common.trainer selects on validation only; common.final_test verifies one selected run and invokes common.evaluator on test once. Data under root data/ is not a Python source package.
 
 ## 数据流与最小接口
 
-1. configs → data：解析配置并验证外部数据；产生训练/验证/测试划分、独立 ID 映射、特征、固定缺失掩码与 manifest。
-2. data 的 TRAIN 交互 → graph：产生稀疏关联结构和训练统计。graph 不接收验证/测试交互；若结构权重使用模态，只能使用当前协议允许的可见特征。
-3. 训练结构、可见特征、掩码 → models：同一支持集计算浅层协同基底，模块一输出带局部内容的组条件 LOO 表示，模块二输出缺失模态补偿；系数融合后得到用户/物品表示。
-4. training 从训练样本获得批损失；evaluation 从冻结模型取得分数，负责候选过滤、全排序及指标。验证指标用于选择；测试指标不反馈选择过程。
+1. configs → common.dataset：解析配置并验证外部数据；产生训练/验证/测试划分、独立 ID 映射、特征、固定缺失掩码与 manifest。
+2. common.dataset 的 TRAIN 交互 → utils.incidence：产生稀疏关联结构和训练统计。utils.incidence 不接收验证/测试交互；若结构权重使用模态，只能使用当前协议允许的可见特征。
+3. 训练结构、可见特征、掩码 → model：同一支持集计算浅层协同基底，模块一输出带局部内容的组条件 LOO 表示，模块二输出缺失模态补偿；系数融合后得到用户/物品表示。
+4. common.trainer 从训练样本获得批损失；common.evaluator 从冻结模型取得分数，负责候选过滤、全排序及指标。验证指标用于选择；测试指标不反馈选择过程。
 
 | 契约 | 建议形状/语义 |
 |---|---|

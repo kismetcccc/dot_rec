@@ -14,15 +14,7 @@
 
 使用独立 PyTorch 核心，参考 MMRec 的批损失/全物品评分接口；不整体搬运 MMRec 或 ChaoRec。精确版本与理由见 docs/architecture.md。
 
-建议采用 `src/dot_rec/` 包，包含 data、graph、models、training、evaluation 五个薄层；仓库根目录放 tests、configs、docs。目录职责与数据流见架构文档。当前只创建有实际内容的目录，不预生成空壳。
-
-- data：格式适配、ID 映射、划分检查、特征及缺失掩码验证；不训练模型、不生成行为图。
-- graph：从训练交互构造稀疏关联结构、训练统计与归一化；不读取验证/测试标签。
-- models：主模型及两个研究模块的张量运算；不读取磁盘、不选择超参、不负责排名屏蔽。
-- training：损失组合、优化与检查点流程的实现，供用户在获准环境执行；不得在本机运行训练。
-- evaluation：独立排名、历史屏蔽和指标计算；不得修改参数或按测试结果选模型。
-- tests：小型合成输入的无训练正确性检查。configs 保存明确配置；docs 保存设计、协议和参考来源。
-- 避免通用插件注册器、过度继承和多层工厂；不引入服务端、前端或数据库。
+Code belongs in root model/ (all future models), common/ (dataset/trainer/evaluator/final_test), and utils/ (config/incidence/masks/sampling/reproducibility). BAST has two modules under model/modules/. configs/model and configs/dataset hold JSON inputs. main.py and evaluate.py are thin explicitly guarded entrypoints. data/README.md explains external data; real data and log outputs are ignored. tests/ contains CPU-only synthetic checks. No src duplicate, model zoo, plugin registry, frontend, service or database.
 
 ## 数据、缺失与评测
 
@@ -50,3 +42,8 @@
 - 第三方参考须记录仓库、精确 commit、文件和用途；复制/改编前检查文件归属及许可证，保留适用声明。公开可读不等于允许再发布。
 - MMRec 固定参考版本含 GPLv3；ChaoRec 已审版本未发现许可证文件。不得据此替 dot_rec 自行指定许可证或未经审查复制其实现。
 - 仅经审查的白名单源码/文档允许发布，数据和实验产物禁止发布；不包含特征、检查点、日志、缓存或密钥。
+
+
+## Required flat layout (supersedes earlier directory names)
+
+All future model implementations MUST go in root `model/` (singular). BAST stays in model/bast.py with exactly two readable modules in model/modules/. Do not recreate src/dot_rec or maintain duplicate implementations. common/ owns dataset, validation-only training, ranking and explicit final testing; utils/ owns configuration, incidence, masks, sampling and reproducibility. configs/model and configs/dataset hold JSON configurations. main.py and evaluate.py are thin guarded entrypoints. data/ contains only its tracked README; actual data and log outputs are ignored. No img placeholder, model registry or plugin machinery is needed. Use git moves for existing code. Final testing is a separate explicit operation after validation selection, never automatic at the end of each training run.

@@ -8,14 +8,16 @@ import unittest
 from unittest.mock import patch
 import numpy as np
 import torch
-from dot_rec.data import load_manifest, validate_splits, fixed_mask, dropout_view, load_mmrec_inter, load_edges
-from dot_rec.data.dataset import sha256_file
-from dot_rec.evaluation import recommend, ranking_metrics, evaluate
-from dot_rec.models import ModelConfig
-from dot_rec.models import BAST
-from dot_rec.training.config import load_config
-from dot_rec.training.sampling import TrainNegativeSampler
-from dot_rec.training.cli import main, configure_determinism, source_fingerprint
+from common.dataset import load_manifest, validate_splits, load_mmrec_inter, load_edges
+from utils.masks import fixed_mask, dropout_view
+from common.dataset import sha256_file
+from common.evaluator import recommend, ranking_metrics, evaluate
+from model import ModelConfig
+from model import BAST
+from utils.config import load_config
+from utils.sampling import TrainNegativeSampler
+from common.trainer import main
+from utils.reproducibility import configure_determinism, source_fingerprint
 from test_model import fixture
 
 
@@ -36,6 +38,20 @@ def fixture_directory():
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_ranked_duplicates_types_padding_and_direct_edges(self):
+        for ranked, targets in (([[3, 3]], {3}), ([[3.9]], {3}), ([[-1]], {-1})):
+            with self.assertRaises(ValueError):
+                ranking_metrics(ranked, [0], {0: targets}, (2,))
+        self.assertEqual(ranking_metrics([[3, -1, -1]], [0], {0: {3}}, (3,))["recall@3"], 1.)
+        model = fixture()
+        valid = np.array([[0, 3]])
+        for edges in (np.array([[-1, 0]]), np.array([[0, -1]]), np.array([[0., 3.]]),
+                      np.array([0, 3]), np.array([[3, 0]]), np.array([[0, 5]])):
+            with self.assertRaises(ValueError):
+                evaluate(model, edges, np.array([[0, 0]]))
+            with self.assertRaises(ValueError):
+                evaluate(model, valid, edges)
+
     def test_ranking_public_input_validation(self):
         model = fixture()
         encoded = model.encode()
@@ -67,20 +83,20 @@ class ProtocolTests(unittest.TestCase):
     def test_source_fingerprint_tracks_only_allowed_contents(self):
         with fixture_directory() as tmp:
             root = Path(tmp)
-            (root / "src").mkdir()
+            (root / "model").mkdir()
             (root / "configs").mkdir()
-            source = root / "src" / "model.py"
+            source = root / "model" / "model.py"
             source.write_text("value = 1", encoding="utf-8")
             (root / "configs" / "test.json").write_text("{}", encoding="utf-8")
-            (root / "src" / ".env").write_text("synthetic excluded fixture", encoding="utf-8")
+            (root / "model" / ".env").write_text("synthetic excluded fixture", encoding="utf-8")
             a = source_fingerprint(root)
-            self.assertEqual(set(a["files"]), {"src/model.py", "configs/test.json"})
-            (root / "src" / ".env").write_text("changed synthetic fixture", encoding="utf-8")
+            self.assertEqual(set(a["files"]), {"model/model.py", "configs/test.json"})
+            (root / "model" / ".env").write_text("changed synthetic fixture", encoding="utf-8")
             self.assertEqual(a, source_fingerprint(root))
             source.write_text("value = 2", encoding="utf-8")
             b = source_fingerprint(root)
             self.assertNotEqual(a["digest"], b["digest"])
-            self.assertNotEqual(a["files"]["src/model.py"], b["files"]["src/model.py"])
+            self.assertNotEqual(a["files"]["model/model.py"], b["files"]["model/model.py"])
             self.assertEqual(b, source_fingerprint(root))
 
     def test_cold_coverage_reporting_and_warm_only_rejection(self):
@@ -151,9 +167,9 @@ class ProtocolTests(unittest.TestCase):
 
     def test_cuda_determinism_preflight_with_mocked_state_only(self):
         # No actual CUDA query, initialization, environment change or optimization.
-        with patch("dot_rec.training.cli.os.environ", {}) as environment, \
-             patch("dot_rec.training.cli.torch.cuda.is_initialized", return_value=False) as initialized, \
-             patch("dot_rec.training.cli.torch.use_deterministic_algorithms") as enable:
+        with patch("utils.reproducibility.os.environ", {}) as environment, \
+             patch("utils.reproducibility.torch.cuda.is_initialized", return_value=False) as initialized, \
+             patch("utils.reproducibility.torch.use_deterministic_algorithms") as enable:
             configure_determinism("cpu")
             initialized.assert_not_called()
             self.assertEqual(environment, {})
@@ -271,7 +287,7 @@ class ProtocolTests(unittest.TestCase):
             path.write_text('{"training":{"invented":1}}', encoding="utf-8")
             with self.assertRaises(ValueError):
                 load_config(path)
-        with patch("dot_rec.training.cli.run_training") as run:
+        with patch("common.trainer.run_training") as run:
             with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 main(["--config", "unused", "--manifest", "unused", "--output", "unused"])
             run.assert_not_called()

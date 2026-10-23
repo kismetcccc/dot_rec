@@ -4,10 +4,10 @@ import itertools
 import math
 import unittest
 import torch
-from dot_rec.graph import Incidence, safe_normalize
-from dot_rec.models import BAST, ModelConfig
-from dot_rec.models.missing import MissingTransport
-from dot_rec.models.observed import ObservedTransport
+from utils.incidence import Incidence, safe_normalize
+from model import BAST, ModelConfig
+from model.modules.missing import MissingTransport
+from model.modules.observed import ObservedTransport
 
 
 def fixture(mask=None, config=None):

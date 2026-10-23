@@ -1,7 +1,7 @@
 import math
 import numpy as np
 import torch
-from dot_rec.data.dataset import split_coverage
+from common.dataset import split_coverage
 
 
 def _positive_integer(value, name):
@@ -18,6 +18,15 @@ def _cutoffs(ks):
     if len(set(ks)) != len(ks):
         raise ValueError("Duplicate cutoffs are not allowed")
     return ks
+
+
+def _edges(edges, n_users, n_items):
+    edges = np.asarray(edges)
+    if edges.ndim != 2 or edges.shape[1] != 2 or edges.dtype.kind not in "iu":
+        raise ValueError("Edges must be integer [E,2]")
+    if np.any(edges < 0) or np.any(edges[:, 0] >= n_users) or np.any(edges[:, 1] >= n_items):
+        raise ValueError("Edge ID outside catalog")
+    return edges
 
 
 def histories(edges):
@@ -69,6 +78,15 @@ def ranking_metrics(ranked, users, positives, ks=(10, 20)):
     ranked = np.asarray(ranked)
     if ranked.ndim != 2 or len(ranked) != len(users):
         raise ValueError("ranked must have exactly one row per user")
+    if ranked.dtype.kind not in "iu" or np.any(ranked < -1):
+        raise ValueError("ranked must contain integer IDs or -1 padding")
+    for row in ranked:
+        valid = row[row >= 0]
+        if len(np.unique(valid)) != len(valid):
+            raise ValueError("Duplicate ranked IDs")
+    for targets in positives.values():
+        if any(isinstance(j, (bool, np.bool_)) or not isinstance(j, (int, np.integer)) or j < 0 for j in targets):
+            raise ValueError("Targets must be nonnegative integer IDs")
     totals = {f"{metric}@{k}": 0.0 for k in ks for metric in ("recall", "ndcg")}
     count = 0
     for row, user in zip(ranked, users):
@@ -77,7 +95,7 @@ def ranking_metrics(ranked, users, positives, ks=(10, 20)):
             continue
         count += 1
         for k in ks:
-            hits = [1.0 if int(j) in targets else 0.0 for j in row[:k]]
+            hits = [1.0 if j >= 0 and int(j) in targets else 0.0 for j in row[:k]]
             totals[f"recall@{k}"] += sum(hits) / len(targets)
             dcg = sum(hit / math.log2(rank + 2) for rank, hit in enumerate(hits))
             ideal = sum(1 / math.log2(rank + 2) for rank in range(min(k, len(targets))))
@@ -93,6 +111,8 @@ def evaluate(model, target_edges, excluded_edges, ks=(10, 20), user_batch=128, i
     ks = _cutoffs(ks)
     _positive_integer(user_batch, "user_batch")
     _positive_integer(item_chunk, "item_chunk")
+    target_edges = _edges(target_edges, model.graph.n_users, model.graph.n_items)
+    excluded_edges = _edges(excluded_edges, model.graph.n_users, model.graph.n_items)
     positives, excluded = histories(target_edges), histories(excluded_edges)
     if any(items & excluded.get(u, set()) for u, items in positives.items()):
         raise ValueError("Evaluation targets overlap masked history")
