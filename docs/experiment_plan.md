@@ -1,6 +1,6 @@
 # Experiment plan: external execution only
 
-Status: all real-data experiments are **NOT RUN**. This plan targets candidate commit `9bb81bbe53d4a5b4c3da207c49163ae41caf6e98`; future changes require a new source fingerprint. Training is prohibited on the development computer. GPU training remains statically reviewed only. No experiment scheduler, automatic training CI or dataset downloader is provided.
+Status: all real-data experiments are **NOT RUN**. The model originated in candidate commit `9bb81bbe53d4a5b4c3da207c49163ae41caf6e98`. The layout and separate training/final-test commands in this plan refer to commit `a05ce3b3400fa81ba01758bea5d5bafbad1a509b`; source/config changes require a new source fingerprint. Training is prohibited on the development computer. GPU training remains statically reviewed only. No experiment scheduler, automatic training CI or dataset downloader is provided.
 
 ## Freeze inputs before comparing models
 
